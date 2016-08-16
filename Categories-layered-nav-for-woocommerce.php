@@ -35,24 +35,30 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	 * @return array $filtered_posts
 	 */
 	function ob_add_categories_filter( $filtered_posts ) {
-		global $_chosen_attributes;
+		global $_chosen_cat_attributes;
 
-		$taxonomy        = wc_sanitize_taxonomy_name( OB_PRODUCTS_CATEGORY_TAXONOMY );
-		$name            = 'filter_' . OB_PRODUCTS_CATEGORY_TAXONOMY;
-		$query_type_name = 'query_type_' . OB_PRODUCTS_CATEGORY_TAXONOMY;
+		$taxonomies = get_object_taxonomies(['product']);
 
-		if ( ! empty( $_GET[ $name ] ) && taxonomy_exists( $taxonomy ) ) {
+		foreach ($taxonomies as $taxonomy_name) {
 
-			$_chosen_attributes[ $taxonomy ]['terms'] = explode( ',', $_GET[ $name ] );
+			$taxonomy        = wc_sanitize_taxonomy_name( $taxonomy_name );
+			$name            = 'filter_' . $taxonomy_name;
+			$query_type_name = 'query_type_' . $taxonomy_name;
 
-			if ( empty( $_GET[ $query_type_name ] ) || ! in_array( strtolower( $_GET[ $query_type_name ] ), array(
-					'and',
-					'or'
-				) )
-			) {
-				$_chosen_attributes[ $taxonomy ]['query_type'] = apply_filters( 'woocommerce_layered_nav_default_query_type', 'and' );
-			} else {
-				$_chosen_attributes[ $taxonomy ]['query_type'] = strtolower( $_GET[ $query_type_name ] );
+			if ( ! empty( $_GET[ $name ] ) && taxonomy_exists( $taxonomy ) ) {
+
+				$_chosen_cat_attributes[ $taxonomy ]['terms'] = explode( ',', $_GET[ $name ] );
+
+				if ( empty( $_GET[ $query_type_name ] ) || ! in_array( strtolower( $_GET[ $query_type_name ] ), array(
+						'and',
+						'or'
+					) )
+				) {
+					$_chosen_cat_attributes[ $taxonomy ]['query_type'] = apply_filters( 'woocommerce_layered_nav_default_query_type', 'and' );
+				} else {
+					$_chosen_cat_attributes[ $taxonomy ]['query_type'] = strtolower( $_GET[ $query_type_name ] );
+				}
+
 			}
 
 		}
@@ -63,20 +69,45 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	/**
 	 * ob_replace_layered_nav_widget
 	 *
-	 * Loads the Widget Class after the Woocommmerce plugins are loaded so it
+	 * Adds the Widget Class after the Woocommmerce plugins are loaded so it
 	 * can extend the Layered Nav Plugin
 	 *
 	 * @return void
 	 */
-	function ob_replace_layered_nav_widget() {
-		unregister_widget( 'WC_Widget_Layered_Nav' );
+	function ob_add_layered_nav_widget() {
 		include_once( 'widgets/OB_Widget_Layered_Nav_Categories.php' );
 		register_widget( 'OB_Widget_Layered_Nav_Categories' );
 	}
 
-	// Set Actions and Filters
-	add_action( 'widgets_init', 'ob_replace_layered_nav_widget', 11 );
+	function add_tax_query_for_layered_cat_filters($tax_query, $wc_query) {
+		global $_chosen_cat_attributes;
 
-	add_filter( 'loop_shop_post_in', 'ob_add_categories_filter', 5, 1 );
+		if (!$_chosen_cat_attributes) ob_add_categories_filter([]);
+
+		// Layered nav filters on terms
+		if ( $_chosen_cat_attributes ) {
+			foreach ( $_chosen_cat_attributes as $taxonomy => $data ) {
+				$tax_query[] = array(
+					'taxonomy' => $taxonomy,
+					'field'    => 'slug',
+					'terms'    => $data['terms'],
+					'operator' => 'and' === $data['query_type'] ? 'AND' : 'IN',
+					'include_children' => false,
+				);
+			}
+		}
+
+		return $tax_query;
+	}
+
+	// Set Actions and Filters
+	add_action( 'widgets_init', 'ob_add_layered_nav_widget', 11 );
+
+	//add_filter( 'loop_shop_post_in', 'ob_add_categories_filter', 5, 1 );
+
+	add_filter( 'woocommerce_product_query_tax_query', 'add_tax_query_for_layered_cat_filters', 10, 2);
 
 }
+
+//todo: il widget che mostra i layered attivi non mostra il layered scelto attualmente. sistema questa cosa o trova una
+// soluzione alternativa a sti cazzo di layered filter
