@@ -62,6 +62,8 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
 		}
 
+		if (!$_chosen_cat_attributes) $_chosen_cat_attributes = array();
+
 		return $filtered_posts;
 	}
 
