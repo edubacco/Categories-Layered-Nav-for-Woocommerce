@@ -25,7 +25,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	define( 'OB_PRODUCTS_CATEGORY_TAXONOMY', 'product_cat' );
 
 	/**
-	 * ob_add_categories_filter function
+	 * ob_set_global_chosen_cat_attributes function
 	 *
 	 * Sets a global $chosen_cat_attributes to include the Product Categories
 	 *
@@ -33,7 +33,7 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	 *
 	 * @return array $filtered_posts
 	 */
-	function ob_add_categories_filter( $filtered_posts ) {
+	function ob_set_global_chosen_cat_attributes($filtered_posts ) {
 		global $_chosen_cat_attributes;
 
 		$taxonomies = get_object_taxonomies(['product']);
@@ -78,30 +78,9 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 		register_widget( 'OB_Widget_Layered_Nav_Categories' );
 
 		include_once('widgets/OB_Widget_Layered_Nav_Filters.php');
-		unregister_widget('WC_Widget_Layered_Nav');
+		unregister_widget('WC_Widget_Layered_Nav_Filters');
 		register_widget( 'OB_Widget_Layered_Nav_Filters' );
 
-	}
-
-	function add_tax_query_for_layered_cat_filters($tax_query, $wc_query) {
-		global $_chosen_cat_attributes;
-
-		if (!$_chosen_cat_attributes) ob_add_categories_filter([]);
-
-		// Layered nav filters on terms
-		if (0 && $_chosen_cat_attributes ) {
-			foreach ( $_chosen_cat_attributes as $taxonomy => $data ) {
-				$tax_query[] = array(
-					'taxonomy' => $taxonomy,
-					'field'    => 'slug',
-					'terms'    => $data['terms'],
-					'operator' => 'and' === $data['query_type'] ? 'AND' : 'IN',
-					'include_children' => false,
-				);
-			}
-		}
-
-		return $tax_query;
 	}
 
 	/**
@@ -142,6 +121,6 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
 	add_filter( 'loop_shop_post_in', 'loop_shop_post_in_layered_cat_filters', 5, 1 );
 
-	add_filter( 'woocommerce_product_query_tax_query', 'add_tax_query_for_layered_cat_filters', 10, 2);
+	add_action( 'init', 'ob_set_global_chosen_cat_attributes' );
 
 }

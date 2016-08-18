@@ -88,10 +88,10 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 		$taxonomy     = isset( $instance['attribute'] ) ? $instance['attribute'] : $this->settings['attribute']['std']; // Changed this to use the attribute as is, since we set it now as the taxonomy name (not as label)
 		$query_type   = isset( $instance['query_type'] ) ? $instance['query_type'] : $this->settings['query_type']['std'];
 
-		// Skip Display if we are browsing a product category
-		if ( is_product_category() && $taxonomy == OB_PRODUCTS_CATEGORY_TAXONOMY ) {
+		// Skip Display if we are browsing a product category, no I want it
+		/*if ( is_product_category() && $taxonomy == OB_PRODUCTS_CATEGORY_TAXONOMY ) {
 			return;
-		}
+		}*/
 
 		if ( ! taxonomy_exists( $taxonomy ) ) {
 			return;
@@ -99,6 +99,9 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 
 		$get_terms_args = array( 'hide_empty' => '1' );
 
+		if ($taxonomy == 'product_cat'){
+			$get_terms_args['child_of'] =$current_term;
+		}
 		$orderby = wc_attribute_orderby( $taxonomy );
 
 		switch ( $orderby ) {
@@ -128,6 +131,12 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 
 			$this->widget_end( $args );
 
+
+			// Force found when option is selected - do not force found on taxonomy attributes
+			if ( ! is_tax() && is_array( $_chosen_cat_attributes ) && array_key_exists( $taxonomy, $_chosen_cat_attributes ) ) {
+				$found = true;
+			}
+
 			if ( ! $found ) {
 				ob_end_clean();
 			} else {
@@ -136,6 +145,73 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 		}
 	}
 
+
+	protected function get_page_base_url( $taxonomy ) {
+		global $_chosen_cat_attributes;
+
+		if ( defined( 'SHOP_IS_ON_FRONT' ) ) {
+			$link = home_url();
+		} elseif ( is_post_type_archive( 'product' ) || is_page( wc_get_page_id( 'shop' ) ) ) {
+			$link = get_post_type_archive_link( 'product' );
+		} elseif ( is_product_category() ) {
+			$link = get_term_link( get_query_var( 'product_cat' ), 'product_cat' );
+		} elseif ( is_product_tag() ) {
+			$link = get_term_link( get_query_var( 'product_tag' ), 'product_tag' );
+		} else {
+			$queried_object = get_queried_object();
+			$link = get_term_link( $queried_object->slug, $queried_object->taxonomy );
+		}
+
+		// Min/Max
+		if ( isset( $_GET['min_price'] ) ) {
+			$link = add_query_arg( 'min_price', wc_clean( $_GET['min_price'] ), $link );
+		}
+
+		if ( isset( $_GET['max_price'] ) ) {
+			$link = add_query_arg( 'max_price', wc_clean( $_GET['max_price'] ), $link );
+		}
+
+		// Orderby
+		if ( isset( $_GET['orderby'] ) ) {
+			$link = add_query_arg( 'orderby', wc_clean( $_GET['orderby'] ), $link );
+		}
+
+		/**
+		 * Search Arg.
+		 * To support quote characters, first they are decoded from &quot; entities, then URL encoded.
+		 */
+		if ( get_search_query() ) {
+			$link = add_query_arg( 's', rawurlencode( htmlspecialchars_decode( get_search_query() ) ), $link );
+		}
+
+		// Post Type Arg
+		if ( isset( $_GET['post_type'] ) ) {
+			$link = add_query_arg( 'post_type', wc_clean( $_GET['post_type'] ), $link );
+		}
+
+		// Min Rating Arg
+		if ( isset( $_GET['min_rating'] ) ) {
+			$link = add_query_arg( 'min_rating', wc_clean( $_GET['min_rating'] ), $link );
+		}
+
+		// All current filters
+		if ( $_chosen_attributes = array_merge(WC_Query::get_layered_nav_chosen_attributes(), $_chosen_cat_attributes) ) {
+			foreach ( $_chosen_attributes as $name => $data ) {
+				if ( $name === $taxonomy ) {
+					continue;
+				}
+				$filter_name = sanitize_title( str_replace( 'pa_', '', $name ) );
+				if ( ! empty( $data['terms'] ) ) {
+					$link = add_query_arg( 'filter_' . $filter_name, implode( ',', $data['terms'] ), $link );
+				}
+				if ( 'or' == $data['query_type'] ) {
+					$link = add_query_arg( 'query_type_' . $filter_name, 'or', $link );
+				}
+			}
+		}
+
+		return $link;
+	}
 
 	protected function layered_nav_list( $terms, $taxonomy, $query_type ) {
 		global $_chosen_cat_attributes;
