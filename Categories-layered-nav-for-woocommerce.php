@@ -34,9 +34,10 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	 * @return array $filtered_posts
 	 */
 	function ob_set_global_chosen_cat_attributes($filtered_posts ) {
-		global $_chosen_cat_attributes;
+		global $_chosen_cat_attributes, $wp_query;
 
 		$taxonomies = get_object_taxonomies(['product']);
+		$qv =& $wp_query->query_vars;
 
 		foreach ($taxonomies as $taxonomy_name) {
 
@@ -44,18 +45,18 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 			$name            = 'filter_' . $taxonomy_name;
 			$query_type_name = 'query_type_' . $taxonomy_name;
 
-			if ( ! empty( $_GET[ $name ] ) && taxonomy_exists( $taxonomy ) ) {
+			if ( ! empty( $qv[ $name ] ) && taxonomy_exists( $taxonomy ) ) {
 
-				$_chosen_cat_attributes[ $taxonomy ]['terms'] = explode( ',', $_GET[ $name ] );
+				$_chosen_cat_attributes[ $taxonomy ]['terms'] = explode( ',', $qv[ $name ] );
 
-				if ( empty( $_GET[ $query_type_name ] ) || ! in_array( strtolower( $_GET[ $query_type_name ] ), array(
+				if ( empty( $qv[ $query_type_name ] ) || ! in_array( strtolower( $qv[ $query_type_name ] ), array(
 						'and',
 						'or'
 					) )
 				) {
 					$_chosen_cat_attributes[ $taxonomy ]['query_type'] = apply_filters( 'woocommerce_layered_nav_default_query_type', 'and' );
 				} else {
-					$_chosen_cat_attributes[ $taxonomy ]['query_type'] = strtolower( $_GET[ $query_type_name ] );
+					$_chosen_cat_attributes[ $taxonomy ]['query_type'] = strtolower( $qv[ $query_type_name ] );
 				}
 
 			}
@@ -94,10 +95,14 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	 * @return array
 	 */
 	function loop_shop_post_in_layered_cat_filters($ids) {
+		if (!is_main_query())
+			return;
+
 		global $_chosen_cat_attributes;
 		if ($_chosen_cat_attributes) {
 			$products_ids =  [];
 			$q['post_type'] = 'product';
+			$q['posts_per_page'] = -1;
 			foreach ($_chosen_cat_attributes as $taxonomy => $data) {
 				$q['tax_query'][] = [
 					'taxonomy' => $taxonomy,
@@ -107,8 +112,14 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 					'include_children' => false,
 				];
 				$current_cat = get_queried_object();
-				if ($current_cat)
-					$q[$current_cat->taxonomy] = $current_cat->slug;
+				if ($current_cat) {
+					$q['tax_query']['relation'] = 'AND';
+					$q['tax_query'][] = [
+						'taxonomy' => $current_cat->taxonomy,
+						'field' => 'slug',
+						'terms' => $current_cat->slug,
+					];
+				}
 
 				$products = get_posts($q);
 				$products_ids = array_merge($products_ids, wp_list_pluck($products, 'ID'));
@@ -118,11 +129,24 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 		return array_unique($ids);
 	}
 
+	function add_layered_filter_query_vars() {
+		global $wp;
+		$taxonomies = get_object_taxonomies(['product']);
+		foreach ($taxonomies as $taxonomy_name) {
+			$taxonomy_name = wc_sanitize_taxonomy_name($taxonomy_name);
+			$name            = 'filter_' . $taxonomy_name;
+			$query_type_name = 'query_type_' . $taxonomy_name;
+			$wp->add_query_var($name);
+			$wp->add_query_var($query_type_name);
+		}
+	}
+
 	// Set Actions and Filters
-	add_action( 'widgets_init', 'ob_layered_nav_widget', 11 );
+	add_action( 'init', 'add_layered_filter_query_vars');
+
+	add_action( 'parse_query', 'ob_set_global_chosen_cat_attributes');
 
 	add_filter( 'loop_shop_post_in', 'loop_shop_post_in_layered_cat_filters', 5, 1 );
 
-	add_action( 'init', 'ob_set_global_chosen_cat_attributes' );
-
+	add_action( 'widgets_init', 'ob_layered_nav_widget', 11 );
 }
