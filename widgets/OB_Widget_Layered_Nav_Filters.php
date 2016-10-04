@@ -44,6 +44,7 @@ class OB_Widget_Layered_Nav_Filters extends WC_Widget_Layered_Nav_Filters {
                             continue;
                         }
 
+                        //todo: salvati un elenco di query args da riutilizzare in giro..
                         $filter_name    = 'filter_' . sanitize_title( str_replace( 'pa_', '', $taxonomy ) );
                         $current_filter = isset( $_GET[ $filter_name ] ) ? explode( ',', wc_clean( $_GET[ $filter_name ] ) ) : array();
                         $current_filter = array_map( 'sanitize_title', $current_filter );
@@ -76,6 +77,14 @@ class OB_Widget_Layered_Nav_Filters extends WC_Widget_Layered_Nav_Filters {
             }
 
             echo '</ul>';
+
+            $reset_link = '/';
+            $query_obj = get_queried_object();
+            if (is_a($query_obj, 'WP_Term')) {
+                $reset_link = get_term_link($query_obj);
+            }
+
+            echo "<a href='$reset_link'>".__('Reset filters', 'woocommerce').'</a>';
 
             $this->widget_end( $args );
         }
