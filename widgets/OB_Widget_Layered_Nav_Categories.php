@@ -219,7 +219,8 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 		// List display
 		echo '<ul>';
 
-		$term_counts        = $this->get_filtered_term_product_counts( wp_list_pluck( $terms, 'term_id' ), $taxonomy, $query_type );
+		$term_ids = wp_list_pluck( $terms, 'term_id' );
+		$term_counts        = $this->get_filtered_term_product_counts( $term_ids, $taxonomy, $query_type );
 		//$_chosen_cat_attributes = WC_Query::get_layered_nav_chosen_attributes();
 		$found              = false;
 
@@ -272,13 +273,16 @@ class OB_Widget_Layered_Nav_Categories extends WC_Widget_Layered_Nav {
 				}
 			}
 
-			echo '<li class="wc-layered-nav-term ' . ( $option_is_set ? 'chosen' : '' ) . '">';
+			//voglio solo sapere se ha un genitore, la lista è ordinata:
+            $has_parent = in_array($term->parent, $term_ids);
 
-			echo ( $count > 0 || $option_is_set ) ? '<a href="' . esc_url( apply_filters( 'woocommerce_layered_nav_link', $link ) ) . '">' : '<span>';
+			echo '<li class="wc-layered-nav-term ' . ( $option_is_set ? 'chosen ' : '' ) . ( $has_parent ? 'has-parent': '') . '">';
+
+			echo ( $count > 0 || $option_is_set ) ? '<a href="' . esc_url( apply_filters( 'woocommerce_layered_nav_link', $link ) ) . '">' : '<a class="disabled">';
 
 			echo esc_html( $term->name );
 
-			echo ( $count > 0 || $option_is_set ) ? '</a> ' : '</span> ';
+			echo ( $count > 0 || $option_is_set ) ? '</a> ' : '</a> ';
 
 			echo apply_filters( 'woocommerce_layered_nav_count', '<span class="count">(' . absint( $count ) . ')</span>', $count, $term );
 
