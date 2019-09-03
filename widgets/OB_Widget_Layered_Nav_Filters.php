@@ -29,8 +29,9 @@ class OB_Widget_Layered_Nav_Filters extends WC_Widget_Layered_Nav_Filters {
         $min_price          = isset( $_GET['min_price'] ) ? wc_clean( $_GET['min_price'] )   : 0;
         $max_price          = isset( $_GET['max_price'] ) ? wc_clean( $_GET['max_price'] )   : 0;
         $min_rating         = isset( $_GET['min_rating'] ) ? absint( $_GET['min_rating'] ) : 0;
+        $onsale             = isset( $_GET['filter_onsale']) && $_GET['filter_onsale'] == 1;
 
-        if ( 0 < count( $_chosen_attributes ) || 0 < $min_price || 0 < $max_price || 0 < $min_rating ) {
+        if ( 0 < count( $_chosen_attributes ) || 0 < $min_price || 0 < $max_price || 0 < $min_rating || !$onsale ) {
 
             $this->widget_start( $args, $instance );
 
@@ -71,10 +72,15 @@ class OB_Widget_Layered_Nav_Filters extends WC_Widget_Layered_Nav_Filters {
                 echo '<li class="chosen"><a title="' . esc_attr__( 'Remove filter', 'woocommerce' ) . '" href="' . esc_url( $link ) . '">' . __( 'Max', 'woocommerce' ) . ' ' . wc_price( $max_price ) . '</a></li>';
             }
 
-            if ( $min_rating ) {
-                $link = remove_query_arg( 'min_rating' );
-                echo '<li class="chosen"><a title="' . esc_attr__( 'Remove filter', 'woocommerce' ) . '" href="' . esc_url( $link ) . '">' . sprintf( __( 'Rated %s and above', 'woocommerce' ), $min_rating ) . '</a></li>';
-            }
+	        if ( $min_rating ) {
+		        $link = remove_query_arg( 'min_rating' );
+		        echo '<li class="chosen"><a title="' . esc_attr__( 'Remove filter', 'woocommerce' ) . '" href="' . esc_url( $link ) . '">' . sprintf( __( 'Rated %s and above', 'woocommerce' ), $min_rating ) . '</a></li>';
+	        }
+
+	        if ( $onsale ) {
+		        $link = remove_query_arg( 'onsale' );
+		        echo '<li class="chosen"><a title="' . esc_attr__( 'Remove filter', 'woocommerce' ) . '" href="' . esc_url( $link ) . '">In sconto</a></li>';
+	        }
 
             echo '</ul>';
 

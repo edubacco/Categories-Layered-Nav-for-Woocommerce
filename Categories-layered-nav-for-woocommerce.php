@@ -63,6 +63,10 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 
 		}
 
+		if ( !empty( $qv['filter_onsale'] ) ) {
+			$_chosen_cat_attributes['onsale'] = 1;
+		}
+
 		if (!$_chosen_cat_attributes) $_chosen_cat_attributes = array();
 
 		return $filtered_posts;
@@ -79,6 +83,9 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 	function ob_layered_nav_widget() {
 		include_once( 'widgets/OB_Widget_Layered_Nav_Categories.php' );
 		register_widget( 'OB_Widget_Layered_Nav_Categories' );
+
+		include_once( 'widgets/OB_Widget_Layered_Nav_Onsale.php' );
+		register_widget( 'OB_Widget_Layered_Nav_Onsale' );
 
 		include_once('widgets/OB_Widget_Layered_Nav_Filters.php');
 		unregister_widget('WC_Widget_Layered_Nav_Filters');
@@ -126,6 +133,18 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 			}
 			$ids = array_merge($products_ids, $ids);
 		}
+
+		if (!empty($_chosen_cat_attributes['onsale']) && $_chosen_cat_attributes['onsale']) {
+			$ids_onsale = wc_get_product_ids_on_sale();
+			if (empty($ids) ){
+				//we want just on sale product
+				$ids = $ids_onsale;
+			}
+			if ( !empty($ids) ) {
+				$ids = array_intersect($ids, $ids_onsale);
+			}
+		}
+
 		return array_unique($ids);
 	}
 
@@ -139,6 +158,9 @@ if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', g
 			$wp->add_query_var($name);
 			$wp->add_query_var($query_type_name);
 		}
+
+		//adding "onsale" filter
+		$wp->add_query_var('filter_onsale');
 	}
 
 	// Set Actions and Filters
